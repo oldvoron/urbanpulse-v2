@@ -655,15 +655,17 @@ def fetch_admin_boundaries(city_name: str) -> dict:
 
     for admin_level in [9, 10]:
         try:
-            if combined.empty or "admin_level" not in combined.columns:
+            if combined.empty:
                 result[f"admin_{admin_level}"] = None
                 continue
-            gdf = combined[_tag_match(combined, "admin_level", str(admin_level))].copy()
-            gdf = gdf[gdf.geometry.geom_type.isin(["Polygon", "MultiPolygon"])].copy()
+            # v1 parity: osmnx OR-unions multiple tag keys, so v1's per-level
+            # features_from_place calls each returned ALL boundary=administrative
+            # polygons intersecting the city — identical sets for levels 9 and
+            # 10. Reproduce that here (no admin_level filter, intersects test
+            # standing in for the place-polygon intersection).
+            gdf = combined[combined.geometry.geom_type.isin(
+                ["Polygon", "MultiPolygon"])].copy()
             if city_poly is not None and not gdf.empty:
-                # intersects (not within): v1's features_from_place also
-                # returned boundaries touching the city polygon, and district
-                # scoring later drops any with too little hex coverage anyway.
                 gdf = gdf[gdf.intersects(city_poly)].copy()
             if not gdf.empty:
                 name_col = "name" if "name" in gdf.columns else gdf.columns[0]
