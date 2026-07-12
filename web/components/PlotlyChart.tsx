@@ -43,6 +43,10 @@ export default function PlotlyChart({
   showCaption?: boolean;
 }) {
   const themed = useMemo(() => {
+    // NOTE: plotly.js is pinned to 2.x — the engine emits figure JSON from
+    // plotly.py 5.x, whose *mapbox traces are native in 2.x but crash in 3.x.
+    const data = spec.data;
+
     const layout: Record<string, unknown> = {
       ...spec.layout,
       paper_bgcolor: "rgba(0,0,0,0)",
@@ -62,10 +66,8 @@ export default function PlotlyChart({
       }
     }
     // Map charts → CARTO dark-matter tiles (free, no API key)
-    for (const key of ["mapbox", "map"]) {
-      if (layout[key] && typeof layout[key] === "object") {
-        layout[key] = { ...(layout[key] as object), style: "carto-darkmatter" };
-      }
+    if (layout.mapbox && typeof layout.mapbox === "object") {
+      layout.mapbox = { ...(layout.mapbox as object), style: "carto-darkmatter" };
     }
     if (layout.polar && typeof layout.polar === "object") {
       layout.polar = {
@@ -76,16 +78,16 @@ export default function PlotlyChart({
     if (layout.legend && typeof layout.legend === "object") {
       layout.legend = { ...(layout.legend as object), bgcolor: "rgba(0,0,0,0)" };
     }
-    return layout;
-  }, [spec.layout]);
+    return { data, layout };
+  }, [spec]);
 
   return (
     <figure className="panel p-3">
       <Plot
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        data={spec.data as any}
+        data={themed.data as any}
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        layout={themed as any}
+        layout={themed.layout as any}
         config={{ displaylogo: false, responsive: true }}
         style={{ width: "100%", minHeight: 380 }}
         useResizeHandler
