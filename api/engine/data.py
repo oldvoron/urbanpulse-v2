@@ -661,7 +661,10 @@ def fetch_admin_boundaries(city_name: str) -> dict:
             gdf = combined[_tag_match(combined, "admin_level", str(admin_level))].copy()
             gdf = gdf[gdf.geometry.geom_type.isin(["Polygon", "MultiPolygon"])].copy()
             if city_poly is not None and not gdf.empty:
-                gdf = gdf[gdf.representative_point().within(city_poly)].copy()
+                # intersects (not within): v1's features_from_place also
+                # returned boundaries touching the city polygon, and district
+                # scoring later drops any with too little hex coverage anyway.
+                gdf = gdf[gdf.intersects(city_poly)].copy()
             if not gdf.empty:
                 name_col = "name" if "name" in gdf.columns else gdf.columns[0]
                 gdf["admin_name"] = gdf[name_col].fillna(f"Zone_{admin_level}")

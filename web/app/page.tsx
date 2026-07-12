@@ -1,101 +1,94 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+// Main analyze view: v1 sidebar + 9-tab result view, backed by
+// POST /api/analyze + polling instead of a blocking Streamlit rerun.
+
+import { useRef, useState } from "react";
+import { analyze, waitForJob } from "@/lib/api";
+import { addHistory } from "@/lib/history";
+import type { AnalysisResult } from "@/lib/types";
+import ControlPanel, {
+  ControlState,
+  controlsToConfig,
+  defaultControls,
+} from "@/components/ControlPanel";
+import AnalysisTabs from "@/components/AnalysisTabs";
+import ProgressPanel from "@/components/ProgressPanel";
+import ExportBar from "@/components/ExportBar";
+import { InfoDrawer, OnboardingModal } from "@/components/InfoPanels";
+
+type Phase =
+  | { kind: "idle" }
+  | { kind: "running"; city: string; progress: string }
+  | { kind: "done"; jobId: string; result: AnalysisResult }
+  | { kind: "error"; message: string };
+
+export default function AnalyzePage() {
+  const [controls, setControls] = useState<ControlState>(defaultControls);
+  const [phase, setPhase] = useState<Phase>({ kind: "idle" });
+  const runSeq = useRef(0);
+
+  const run = async () => {
+    const seq = ++runSeq.current;
+    const city = controls.cityName.trim();
+    setPhase({ kind: "running", city, progress: "" });
+    try {
+      const { job_id } = await analyze(city, controls.zoneMode, controlsToConfig(controls));
+      addHistory({
+        jobId: job_id,
+        cityName: city,
+        kind: "analyze",
+        createdAt: new Date().toISOString(),
+      });
+      const result = await waitForJob<AnalysisResult>(job_id, (progress) => {
+        if (runSeq.current === seq)
+          setPhase({ kind: "running", city, progress });
+      });
+      if (runSeq.current === seq) setPhase({ kind: "done", jobId: job_id, result });
+    } catch (e) {
+      if (runSeq.current === seq)
+        setPhase({ kind: "error", message: e instanceof Error ? e.message : String(e) });
+    }
+  };
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
+    <main className="mx-auto max-w-[1600px] px-4 py-4">
+      <OnboardingModal />
+      <div className="flex items-center justify-between mb-3">
+        <h1 className="font-mono text-sm uppercase tracking-widest text-ink-dim">
+          Urban Spatial Analytics
+        </h1>
+        <InfoDrawer />
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-4">
+        <ControlPanel
+          state={controls}
+          onChange={setControls}
+          onAnalyze={run}
+          busy={phase.kind === "running"}
         />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+        <section className="min-w-0">
+          {phase.kind === "idle" && (
+            <div className="panel p-10 text-center text-ink-dim text-sm">
+              Enter a city name and click <span className="text-accent-transport">Analyze</span> to begin.
+            </div>
+          )}
+          {phase.kind === "running" && (
+            <ProgressPanel cityName={phase.city} progress={phase.progress} />
+          )}
+          {phase.kind === "error" && (
+            <div className="panel border-accent-risk/40 p-6 text-sm text-accent-risk font-mono">
+              {phase.message}
+            </div>
+          )}
+          {phase.kind === "done" && (
+            <div className="space-y-3">
+              <ExportBar jobId={phase.jobId} cityName={phase.result.city_name} />
+              <AnalysisTabs result={phase.result} />
+            </div>
+          )}
+        </section>
+      </div>
+    </main>
   );
 }

@@ -1,0 +1,79 @@
+// Chart captions, carried over verbatim from the v1 Streamlit app so the
+// analytical output stays 1:1. Keyed by the chart keys in result.charts.
+
+export const CHART_CAPTIONS: Record<string, string> = {
+  poi_dominance_map:
+    "Dominant POI functional zone per H3 hex cell (resolution 8, ~460m width). Each cell is coloured by its primary function — the category group with the highest POI count. Cells where no single group exceeds 40% of POIs are labelled 'Mixed', indicating genuinely multi-functional urban fabric. Source: Overture Maps Places. Groups: Food & Hospitality (restaurants, cafes, hotels), Retail & Commerce (shops, offices, banks, real estate), Health & Education (clinics, schools, salons), Culture & Leisure (museums, gyms, parks), Community & Services (government, religious, transport).",
+  poi_distribution:
+    "Distribution of Points of Interest by functional category. Source: Overture Maps Places dataset (global POI database aggregating Meta, Microsoft, TomTom and OSM contributions). Each bar represents the count of POIs in that category within the city boundary. Look for dominant functions to understand the city's economic and service profile.",
+  landuse_composition:
+    "Donut chart of land use area composition across the city. Source: OSM landuse, leisure, and natural tags (polygonal features only). Percentages represent the share of mapped polygonal area — unmapped or unclassified areas are excluded. The green space indicator compares the city's green coverage against the EU urban average of 15%.",
+  poi_density_contour:
+    "POI activity density shown as an H3 hex heatmap (resolution 8, log-scaled colour). Source: Overture Maps Places. Each cell is coloured by the number of POIs it contains — warmer colours (orange to dark red) indicate higher concentrations of urban activity, revealing commercial cores and service clusters that stay readable at every zoom level.",
+  nearest_services:
+    "Distance from the city centre to the nearest facility of each service type, in kilometres. Green bars: within 5-minute walk (<0.5km); orange: within 15-minute walk (<1.5km); red: beyond walkable range. Source: Overture Maps Places. Computed using nearest-neighbour search from the city centroid.",
+  far_heatmap:
+    "Floor Area Ratio (FAR) per H3 hex cell: total built floor area divided by hex cell area. Source: OSM buildings (footprint area × estimated floors, where floors = height / 3.5m). FAR is a standard urban density metric — values above 2.0 indicate dense urban fabric; below 0.3 indicates suburban or low-rise areas.",
+  morphotype_clusters:
+    "Urban morphotype classification derived from KMeans clustering (k=5) applied to six normalised features per H3 cell: floor-area ratio, building coverage ratio, median height, street density, POI density, and land-use diversity. Source: OSM buildings, OSMnx street network and Overture Maps POI. Clusters are labelled by their dominant profile: historic_core (high diversity, walkable mixed-use), dense_urban (highest FAR and height), residential (moderate FAR, low diversity), low_rise_commercial (high coverage, low height), suburban (low FAR and coverage, large plots).",
+  density_gradient:
+    "Mean building height profiles along two perpendicular cross-sections through the city centre — north↔south (left, blue) and west↔east (right, purple) — in 0.3km bands, smoothed with a 3-band rolling average. Source: OSM buildings (height tag). The red dashed line marks the city centre. Compare the two profiles to spot directional asymmetries in the urban skyline — e.g. a taller core to the south or a denser corridor to the east.",
+  morphological_transition:
+    "Multi-line chart showing how four key urban metrics change with distance from the city centre in 500m bands: building density (FAR), green space ratio, transport accessibility, and POI diversity. All metrics normalised to 0–1 for comparability. Source: OSM buildings, OSM green space, OSM transit, and Overture Maps POI, aggregated to H3 hex cells and grouped by distance band. Vertical dotted lines mark 1km and 3km thresholds.",
+  urban_quality:
+    "Scatter plot of Transport Accessibility Index (x) versus Nature Index (y) for each H3 hex cell, sized by FAR and coloured by Composite Morphological Index. The dashed regression line and correlation coefficient (r) show how strongly transport and nature co-vary across the city. Source: OSM and Overture data. Quadrant labels classify cells by their combined performance profile.",
+  street_orientation:
+    "Polar bar chart (wind rose) showing the distribution of street orientations in 36 bins of 5° each, mirrored for bidirectionality. Source: OSM street network via OSMnx, using bearing of each street segment. A uniform distribution indicates an isotropic organic network; strong peaks at 0°/90° indicate a cardinal grid. Shannon entropy value shown in title — lower entropy = more structured grid pattern.",
+  street_radar:
+    "Radar chart of seven street network metrics normalised to 0–1: connectivity (mean node degree), block size score (inverse of mean street length), intersection density, network efficiency (inverse circuity), dead-end ratio, orientation entropy (street direction diversity), and share of major roads. Source: OSM street network via OSMnx. A regular grid city scores high on connectivity and low on orientation entropy; an organic medieval network scores the opposite.",
+  street_centrality:
+    "Street network betweenness centrality mapped onto individual street segments, coloured from blue (low) to red (critical). Betweenness centrality measures how often each street lies on the shortest path between all pairs of nodes — high-centrality streets are structural movement corridors. Source: OSM street network via OSMnx and NetworkX. Computed using k=500 random sample pairs for performance.",
+  transport_map:
+    "Composite transport accessibility index per H3 cell, combining: transit stop density within 400m walk (50% weight), cycling infrastructure coverage in km/km² (30%), and road type entropy (20%). Source: OSM public_transport, highway, and cycleway tags via OSMnx. Higher values (green) indicate well-served areas; red cells lack both transit and cycling infrastructure.",
+  nature_map:
+    "Green space coverage ratio per H3 hex cell: proportion of cell area occupied by parks, forests, gardens, and natural vegetation. Source: OSM leisure=park/garden, landuse=forest/meadow/grass, natural=wood/scrub tags. Cells are coloured from red (no green cover) to dark green (high coverage). Use alongside the flood risk layer to identify green buffers near waterways.",
+  flood_risk_map:
+    "Flood risk classification based on proximity to waterways and terrain elevation. Source: OSM natural=water and waterway tags for water body locations; Open-Meteo Elevation API (SRTM 90m resolution) for terrain height. Risk tiers: high = within 50m of waterway or low elevation; medium = 50–200m; low = beyond 200m and elevated terrain. This is a proxy indicator — not an official flood hazard map.",
+  city_15min:
+    "15-minute city accessibility score by service type: percentage of city area where each service category is reachable within a 1.25km walk (15 minutes at 5km/h). Source: Overture Maps POI for food, healthcare, education; OSM transit stops for public transit; OSM leisure polygons for green space. Scored using a 10×10 sample grid and nearest-neighbour distance. Green ≥ 70%, orange 40–70%, red < 40%.",
+  terrain_elevation:
+    "Terrain elevation in metres above sea level, sampled at H3 hex cell centroids from a regular grid. Source: Open-Meteo Elevation API using SRTM global digital elevation model at 90m resolution, queried via a grid over the city bounding box and interpolated to hex centroids via nearest-neighbour assignment.",
+  terrain_flood_risk:
+    "Terrain-based flood risk composite index per H3 cell, combining three components: elevation risk (40% weight, lower = higher risk), Topographic Wetness Index proxy (35%, computed as ln(cell_area / tan(slope))), and slope risk (25%, flatter terrain retains water). Source: Open-Meteo Elevation API / SRTM. Higher values indicate greater terrain-based flood susceptibility.",
+  terrain_cross:
+    "Scatter plot comparing building density (FAR) against terrain elevation for each H3 hex cell, with cell size proportional to building coverage ratio (BCR). Source: OSM buildings for FAR/BCR; Open-Meteo Elevation API for terrain height. The vertical line marks 10m elevation (approximate low-lying threshold); the horizontal line shows the city median FAR. Top-left quadrant (dense + low elevation) indicates highest combined risk.",
+  twi_distribution:
+    "Distribution of Topographic Wetness Index (TWI) values across the city's H3 hex cells. TWI = ln(contributing_area / tan(slope)), a standard hydrological index indicating areas prone to water accumulation. Source: computed from SRTM elevation data via Open-Meteo API using numpy gradient. Thresholds: TWI < 8 = dry/elevated; 8–12 = moderate; > 12 = flood-prone hollows.",
+  heat_island_map:
+    "Urban Heat Island proxy per H3 hex cell, estimated as ΔTemperature from the city baseline. Formula: ΔT = BCR × 3.0 − green_ratio × 2.0, where BCR is building coverage ratio and green_ratio is green space fraction. Source: OSM buildings for BCR; OSM green space for green ratio; Open-Meteo 7-day forecast for baseline temperature. This is a structural proxy — not measured air temperature data.",
+  opportunity_surface:
+    "3D scatter plot positioning each H3 hex cell in a three-dimensional space: transport accessibility (x), nature index (y), and inverse density (z, so low-density = high z). Colour indicates urban stress level. Source: OSM, Overture Maps, elevation data. The 'Optimal Zone' corner (high transport + high nature + low density) represents the most livable urban configuration — cells far from that corner are candidates for targeted investment.",
+  cross_morph_transport:
+    "Cross-tabulation matrix of Morphological Index quintiles (x) against Transport Accessibility quintiles (y), showing the count of H3 cells in each combination. Source: OSM buildings for morphology; OSM transit and cycling for transport. A concentration of cells in the top-right (dense + well-connected) indicates a compact transit-oriented city; concentration in bottom-left signals disconnected sprawl.",
+  cross_nature_density:
+    "Cross-tabulation of Green Space Ratio quintiles (x) against Building Density / FAR quintiles (y), coloured by median Composite Morphological Index. Source: OSM landuse and leisure for green space; OSM buildings for FAR. Green cells in the top-left (high nature + high density) are rare urban jewels — areas that manage to combine density with greenery.",
+  cross_transport_nature:
+    "Cross-tabulation of Transit Score quintiles (x) against Nature Index quintiles (y), showing concentration of H3 cells. Source: OSM transit stops for transit score; OSM green spaces and water proximity for nature index. The 'Transit-Rich Green Zones' annotation marks the ideal quadrant (top-right); 'Urban Stress Zones' marks areas with both poor transit and low nature access.",
+  landuse_crossref:
+    "Bubble chart comparing mean transport accessibility (x) and mean nature index (y) for each land use type, with bubble size proportional to total area in hectares. Source: OSM landuse polygons spatially joined to the H3 transport and nature hex grids. Reveals which land use types are systematically under-served by transport or lacking green access.",
+  stress_map:
+    "Urban Stress Index per H3 cell — a composite of five equally-weighted components: building density stress (FAR-based), green space deficit (inverse nature index), transit deficit (inverse transport index), flood stress (terrain-based), and mono-functional stress (inverse POI diversity). Sources: OSM buildings, Overture POI, OSM transit, Open-Meteo elevation. Hover to see which driver dominates in each cell.",
+  stress_decomp:
+    "Decomposition of Urban Stress Index by stress class (low / moderate / high / critical), showing mean contribution of each of five components per class. Source: derived from OSM and Overture Maps data. Use this to understand what drives stress in different parts of the city — whether transit, density, green deficit, or flood risk is the primary factor.",
+  vulnerability_map:
+    "Temporal Vulnerability Index per H3 cell: composite of flood risk (35%), building density (30%), transport isolation (20%), and proximity to water (15%). Source: OSM waterways, OSM buildings, transport accessibility index, Open-Meteo elevation. Darker red cells are both physically exposed to flood risk and poorly connected — indicating limited evacuation or emergency response capacity.",
+  stress_pareto:
+    "Pareto analysis of urban stress distribution: hex cells sorted from highest to lowest stress (left to right), with the line showing cumulative stress accumulation. Source: Urban Stress Index computed from OSM and Overture data. The annotation shows what percentage of the city's area concentrates 80% of total urban stress — a standard spatial inequality metric used in urban policy analysis.",
+  vuln_vs_stress:
+    "Scatter plot comparing Urban Stress Index (x-axis) against Temporal Vulnerability Index (y-axis) for each H3 cell, sized by FAR and coloured by vulnerability class. Source: both indices derived from OSM, Overture Maps, and SRTM elevation. Quadrant lines at 0.5/0.5 divide the city into four risk profiles — 'Double Risk Zone' (top-right) requires priority planning attention.",
+  fabric_matrix:
+    "16-cell Urban Fabric Typology Matrix classifying H3 hex cells by two dimensions: compactness (FAR, x-axis: sprawl → compact) and land use mix (POI Shannon entropy, y-axis: mono → vibrant). Source: OSM buildings for FAR; Overture Maps POI for diversity. Cell counts show how many hex cells fall in each fabric type — the dominant type reveals the city's overall urban character.",
+  fabric_map:
+    "Spatial distribution of 16 urban fabric types across the city, based on the compactness × mix classification. Source: OSM buildings and Overture Maps POI, aggregated to H3 resolution 9. Each colour represents a distinct fabric archetype from 'Historic Mixed Core' (compact + vibrant) to 'Fringe / Industrial' (sprawl + mono).",
+  morphotype_radar:
+    "Radar (spider) chart comparing 5 urban morphotype clusters across 8 analytical dimensions: FAR, transport index, nature index, POI diversity, street connectivity, green ratio, flood safety, and normalised building height. Source: all OSM, Overture, and elevation sources combined. Each polygon represents the average profile of one morphotype cluster.",
+  segregation_map:
+    "Urban Segregation Proxy per H3 cell: composite of mono-functionality (40%), transit isolation (35%), and density isolation (25%, high FAR in mono-functional zone). Source: Overture Maps POI diversity, OSM transit stops, OSM buildings. This is a spatial proxy for functional segregation — not a socioeconomic segregation measure.",
+  district_scorecard:
+    "Letter-grade scorecard for each administrative district across five dimensions: transport accessibility, nature access, morphological quality, urban stress, and flood risk. Grades: A (top 25%), B (25–45%), C (45–65%), D (bottom 35%). Source: H3 hex cell metrics spatially joined to OSM administrative boundaries (admin_level 9–10). Districts sorted by overall performance.",
+};

@@ -1,0 +1,19 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "api",
+      "runtimeExecutable": "/Users/vasiliikurian/urbanpulse-v2/api/.venv/bin/uvicorn",
+      "runtimeArgs": ["main:app", "--host", "127.0.0.1", "--port", "7860"],
+      "cwd": "/Users/vasiliikurian/urbanpulse-v2/api",
+      "port": 7860
+    },
+    {
+      "name": "web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "cwd": "/Users/vasiliikurian/urbanpulse-v2/web",
+      "port": 3000
+    }
+  ]
+}

@@ -2,26 +2,51 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  @apply bg-base text-ink antialiased;
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
+::selection {
+  @apply bg-accent-transport/30;
+}
+
+/* dense scrollbars fitting the situation-room register */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #0b0f16;
+}
+::-webkit-scrollbar-thumb {
+  background: #1e2735;
+  border-radius: 5px;
+}
+
+@layer components {
+  .panel {
+    @apply bg-panel border border-edge rounded-md;
+  }
+  .stat-value {
+    @apply font-mono text-xl leading-tight text-ink;
+  }
+  .stat-label {
+    @apply text-[11px] uppercase tracking-wider text-ink-dim;
+  }
+  .btn-primary {
+    @apply bg-accent-transport/15 border border-accent-transport/50 text-accent-transport
+      hover:bg-accent-transport/25 rounded px-4 py-2 text-sm font-medium
+      transition-colors disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+  .btn-ghost {
+    @apply border border-edge text-ink-dim hover:text-ink hover:border-ink-faint
+      rounded px-3 py-1.5 text-sm transition-colors;
+  }
+  .input-dark {
+    @apply bg-panel-2 border border-edge rounded px-3 py-2 text-sm text-ink
+      placeholder:text-ink-faint focus:outline-none focus:border-accent-transport/60 w-full;
+  }
+  .caption {
+    @apply text-[11px] leading-relaxed text-ink-faint mt-1.5;
   }
 }
