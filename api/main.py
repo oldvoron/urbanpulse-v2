@@ -378,6 +378,30 @@ def report(job_id: str):
                  f'attachment; filename="urbanpulse_{slug}.pdf"'})
 
 
+@app.get("/api/districts")
+def districts(city_name: str):
+    """Auto-populated district list (UI addendum §2.2): probes OSM
+    admin_levels 8→9→10 and returns real subdivision names for the dropdown.
+    Cached in city_cache under a dedicated key — the district list for a city
+    never needs re-fetching once known."""
+    city = city_name.strip()
+    if not city:
+        raise HTTPException(400, "city_name is required")
+    cache_key = f"{city}:districts"
+    cached = _city_cache.get(cache_key, None)
+    if cached is not None:
+        return cached
+    from engine.districts import find_districts
+    try:
+        result = find_districts(city)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+    except Exception as e:
+        raise HTTPException(502, f"District lookup failed: {type(e).__name__}: {e}")
+    _city_cache.set(cache_key, None, result)
+    return result
+
+
 @app.get("/api/analysis/{analysis_id}")
 def shared_analysis(analysis_id: str):
     """Public, no auth — persistent shareable fetch of a completed job."""

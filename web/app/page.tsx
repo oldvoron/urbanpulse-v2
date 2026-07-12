@@ -15,7 +15,7 @@ import ControlPanel, {
 import AnalysisTabs from "@/components/AnalysisTabs";
 import ProgressPanel from "@/components/ProgressPanel";
 import ExportBar from "@/components/ExportBar";
-import { InfoDrawer, OnboardingModal } from "@/components/InfoPanels";
+import { InfoDrawer } from "@/components/InfoPanels";
 
 type Phase =
   | { kind: "idle" }
@@ -53,7 +53,6 @@ export default function AnalyzePage() {
 
   return (
     <main className="mx-auto max-w-[1600px] px-4 py-4">
-      <OnboardingModal />
       <div className="flex items-center justify-between mb-3">
         <h1 className="font-mono text-sm uppercase tracking-widest text-ink-dim">
           Urban Spatial Analytics

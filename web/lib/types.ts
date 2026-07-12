@@ -87,7 +87,18 @@ export const CITY_SIZES = [
   "Large (500k+)",
 ] as const;
 
-export const ZONE_MODES = ["Entire city", "Select district", "Draw custom bbox"] as const;
+// API zone_mode values (what pipeline.py expects) with their UI labels.
+export const ZONE_MODES = [
+  { value: "Entire city", label: "Entire city" },
+  { value: "Select district", label: "District" },
+  { value: "Draw custom bbox", label: "Custom area" },
+] as const;
+
+export interface DistrictsResponse {
+  level_used: number | null;
+  districts: { name: string; osm_id: string }[];
+  city_bbox: [number, number, number, number] | null;
+}
 
 export const MODULE_TOGGLES: { key: keyof AnalyzeConfig; label: string }[] = [
   { key: "morphology", label: "Morphology & Buildings" },

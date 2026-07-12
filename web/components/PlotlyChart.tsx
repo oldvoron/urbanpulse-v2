@@ -83,15 +83,19 @@ export default function PlotlyChart({
 
   return (
     <figure className="panel p-3">
-      <Plot
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        data={themed.data as any}
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        layout={themed.layout as any}
-        config={{ displaylogo: false, responsive: true }}
-        style={{ width: "100%", minHeight: 380 }}
-        useResizeHandler
-      />
+      {/* Fixed height + overflow-hidden (§1.1): even if a label calculation
+          is imperfect, it clips instead of bleeding into a sibling panel. */}
+      <div className="overflow-hidden" style={{ height: 420 }}>
+        <Plot
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          data={themed.data as any}
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          layout={themed.layout as any}
+          config={{ displaylogo: false, responsive: true }}
+          style={{ width: "100%", height: "100%" }}
+          useResizeHandler
+        />
+      </div>
       {showCaption && CHART_CAPTIONS[name] && (
         <figcaption className="caption px-1">{CHART_CAPTIONS[name]}</figcaption>
       )}

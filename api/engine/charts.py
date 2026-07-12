@@ -290,12 +290,27 @@ def chart_landuse_composition(landuse_dict: dict) -> go.Figure:
     percentages = (landuse_dict or {}).get("percentages", {})
     if not percentages:
         return _empty("No land use data available", 400)
-    labels = list(percentages.keys())
-    values = list(percentages.values())
+    # Group slivers (<3%) into a single "Other" slice — 7+ individually
+    # labelled slices overflow a half-width compare panel no matter the
+    # margins (§1.1 of the UI addendum).
+    _MIN_SLICE_PCT = 3.0
+    grouped: dict = {}
+    other_total = 0.0
+    for lbl, val in percentages.items():
+        if val < _MIN_SLICE_PCT:
+            other_total += val
+        else:
+            grouped[lbl] = val
+    if other_total > 0:
+        grouped["other"] = grouped.get("other", 0.0) + other_total
+
+    labels = list(grouped.keys())
+    values = list(grouped.values())
     marker_colors = [_LANDUSE_COLORS.get(lbl, "#CCCCCC") for lbl in labels]
     fig = go.Figure(go.Pie(
         labels=labels, values=values, hole=0.4,
         marker=dict(colors=marker_colors), textinfo="label+percent",
+        automargin=True,
     ))
     green_pct = sum(percentages.get(k, 0) for k in ["park", "forest"])
     if green_pct >= 15:
@@ -1098,6 +1113,20 @@ _COMP_ORDER = ["sprawl", "low", "medium", "compact"]
 _MIX_ORDER  = ["mono", "low_mix", "mixed", "vibrant"]
 
 
+def fabric_color_map(labels) -> dict:
+    """Single source of truth for fabric-type colors (§1.3 of the UI addendum).
+
+    Both the typology map's hex fills and its legend swatches are built from
+    this mapping (px passes it as color_discrete_map, so each category is one
+    trace whose legend swatch IS its fill color). Deterministic: sorted labels
+    → stable palette assignment across runs. tests/test_fabric_colors.py
+    asserts the rendered figure agrees with this function.
+    """
+    unique_labels = sorted(pd.Series(list(labels)).dropna().unique())
+    palette = px.colors.qualitative.Dark24
+    return {lbl: palette[i % len(palette)] for i, lbl in enumerate(unique_labels)}
+
+
 def chart_fabric_typology_matrix(fabric_gdf) -> go.Figure:
     if fabric_gdf is None or fabric_gdf.empty:
         return _empty("No fabric typology data available", 400)
@@ -1106,19 +1135,30 @@ def chart_fabric_typology_matrix(fabric_gdf) -> go.Figure:
     df = fabric_gdf[["compactness", "mix"]].copy().astype(str)
     cross_tab = pd.crosstab(df["mix"], df["compactness"])
     cross_tab = cross_tab.reindex(index=_MIX_ORDER, columns=_COMP_ORDER, fill_value=0)
+    # §1.2 of the UI addendum: cells show only the count — the type names
+    # overlapped into unreadable text at rendered size. The full type name
+    # lives in the hover tooltip; the axis labels already identify the
+    # mix × compactness combination.
     text_matrix = []
+    name_matrix = []
     for mix_val in _MIX_ORDER:
-        row = []
+        t_row, n_row = [], []
         for comp_val in _COMP_ORDER:
             key   = f"{comp_val}_{mix_val}"
             label = _FABRIC_LABELS_CHART.get(key, "Mixed")
             count = int(cross_tab.loc[mix_val, comp_val]) if (mix_val in cross_tab.index and comp_val in cross_tab.columns) else 0
-            row.append(f"{label}<br>n={count}")
-        text_matrix.append(row)
+            t_row.append(f"n={count}")
+            n_row.append(label)
+        text_matrix.append(t_row)
+        name_matrix.append(n_row)
     fig = go.Figure(go.Heatmap(
         z=cross_tab.values.tolist(), x=_COMP_ORDER, y=_MIX_ORDER,
         colorscale="YlOrRd", text=text_matrix, texttemplate="%{text}",
-        textfont=dict(size=9), showscale=True, colorbar=dict(title="Hex Count"), xgap=2, ygap=2,
+        textfont=dict(size=14), showscale=True, colorbar=dict(title="Hex Count"), xgap=2, ygap=2,
+        customdata=name_matrix,
+        hovertemplate=("<b>%{customdata}</b><br>"
+                       "mix=%{y} × compactness=%{x}<br>"
+                       "n=%{z}<extra></extra>"),
     ))
     fig.update_layout(
         title="Urban Fabric Typology Matrix (16 Types)",
@@ -1137,9 +1177,7 @@ def chart_fabric_typology_map(fabric_gdf) -> go.Figure:
         return _empty("No fabric typology map data available")
     if "h3_cell" not in fabric_gdf.columns:
         return _empty("Need h3_cell column for fabric typology map")
-    unique_labels = sorted(fabric_gdf["planning_label"].dropna().unique())
-    palette   = px.colors.qualitative.Dark24
-    color_map = {lbl: palette[i % len(palette)] for i, lbl in enumerate(unique_labels)}
+    color_map = fabric_color_map(fabric_gdf["planning_label"].dropna().unique())
     hover = [c for c in ["planning_label", "fabric_type", "FAR", "diversity_score"] if c in fabric_gdf.columns]
     return _choropleth_hex(
         fabric_gdf, "planning_label", "Urban Fabric Types — Spatial Distribution",

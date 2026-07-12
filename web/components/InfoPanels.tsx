@@ -4,7 +4,7 @@
 
 import { useEffect, useState } from "react";
 
-const ONBOARD_KEY = "urbanpulse.onboarded.v2";
+const ONBOARD_KEY = "urbanpulse.instructions.v1";
 
 export function AboutPanel() {
   return (
@@ -26,6 +26,62 @@ export function AboutPanel() {
         transport, magenta for POI/functional zones, amber for risk readouts,
         green reserved for nature — never an evaluative good/bad scale.
       </p>
+      <p className="text-ink-faint text-xs border-t border-edge pt-3">
+        Built by Vasilii Kurian — urban planning researcher (Tours, France).
+        <br />
+        Contact:{" "}
+        <a href="mailto:vasiliikurian@gmail.com" className="text-accent-transport">
+          vasiliikurian@gmail.com
+        </a>
+      </p>
+    </div>
+  );
+}
+
+export function InstructionsPanel() {
+  const steps: [string, React.ReactNode][] = [
+    [
+      "1. Enter a city",
+      <>Type a city name with its country, e.g. “Blois, France”. Country
+      disambiguates cities that share a name across countries.</>,
+    ],
+    [
+      "2. Choose an analysis zone",
+      <>
+        <span className="text-ink">Entire city</span> — analyzes the full
+        OSM-defined city boundary.{" "}
+        <span className="text-ink">District</span> — pick a real administrative
+        subdivision (arrondissement, borough, district — whatever the local
+        system calls it) from a list generated for that specific city.{" "}
+        <span className="text-ink">Custom area</span> — draw a rectangle
+        directly on the map.
+      </>,
+    ],
+    [
+      "3. Click Analyze",
+      <>The app fetches live data from OpenStreetMap and Overture Maps and
+      computes every metric on demand — nothing is precomputed, so the first
+      run on a new city takes longer than a cached one.</>,
+    ],
+    [
+      "4. Explore the tabs",
+      <>Overview, Morphology, Street Network, Transport, Nature &amp; Risk,
+      Cross-Analysis, Stress &amp; Risk, Typology, District Scores.</>,
+    ],
+    [
+      "5. Export or share",
+      <>Download a PDF report, export raw data as GeoJSON/Shapefile for use in
+      QGIS, or copy a shareable link to this exact analysis.</>,
+    ],
+  ];
+  return (
+    <div className="space-y-3">
+      {steps.map(([title, body]) => (
+        <div key={title}>
+          <div className="stat-label">{title}</div>
+          <p className="text-xs text-ink-dim leading-relaxed mt-0.5">{body}</p>
+        </div>
+      ))}
     </div>
   );
 }
@@ -69,17 +125,35 @@ export function MethodologyPanel() {
   );
 }
 
+type PanelKind = "about" | "methodology" | "instructions";
+
+const PANEL_TITLES: Record<PanelKind, string> = {
+  about: "About",
+  methodology: "Methodology",
+  instructions: "Instructions",
+};
+
 export function InfoDrawer() {
-  const [open, setOpen] = useState<null | "about" | "methodology">(null);
+  const [open, setOpen] = useState<null | PanelKind>(null);
+
+  // §1.6: Instructions auto-opens on a user's first visit (localStorage flag,
+  // independent of the placeholder account system), dismissible, and
+  // reachable again anytime via the header button.
+  useEffect(() => {
+    if (!localStorage.getItem(ONBOARD_KEY)) {
+      setOpen("instructions");
+      localStorage.setItem(ONBOARD_KEY, "1");
+    }
+  }, []);
+
   return (
     <>
       <div className="flex gap-2">
-        <button className="btn-ghost !text-xs" onClick={() => setOpen("about")}>
-          About
-        </button>
-        <button className="btn-ghost !text-xs" onClick={() => setOpen("methodology")}>
-          Methodology
-        </button>
+        {(Object.keys(PANEL_TITLES) as PanelKind[]).map((k) => (
+          <button key={k} className="btn-ghost !text-xs" onClick={() => setOpen(k)}>
+            {PANEL_TITLES[k]}
+          </button>
+        ))}
       </div>
       {open && (
         <div
@@ -92,51 +166,18 @@ export function InfoDrawer() {
           >
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-mono text-sm uppercase tracking-widest text-ink">
-                {open === "about" ? "About" : "Methodology"}
+                {PANEL_TITLES[open]}
               </h2>
               <button className="btn-ghost !px-2 !py-0.5" onClick={() => setOpen(null)}>
                 ✕
               </button>
             </div>
-            {open === "about" ? <AboutPanel /> : <MethodologyPanel />}
+            {open === "about" && <AboutPanel />}
+            {open === "methodology" && <MethodologyPanel />}
+            {open === "instructions" && <InstructionsPanel />}
           </div>
         </div>
       )}
     </>
-  );
-}
-
-export function OnboardingModal() {
-  const [show, setShow] = useState(false);
-  useEffect(() => {
-    if (!localStorage.getItem(ONBOARD_KEY)) setShow(true);
-  }, []);
-  if (!show) return null;
-  const dismiss = () => {
-    localStorage.setItem(ONBOARD_KEY, "1");
-    setShow(false);
-  };
-  return (
-    <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center" onClick={dismiss}>
-      <div className="panel max-w-lg w-[92%] p-6" onClick={(e) => e.stopPropagation()}>
-        <div className="font-mono text-xs uppercase tracking-widest text-accent-transport mb-3">
-          Welcome to Urban Pulse
-        </div>
-        <ol className="text-sm text-ink-dim space-y-2 list-decimal list-inside leading-relaxed">
-          <li>
-            Type a city name <span className="text-ink-faint">(include the country — “Blois, France”)</span> and
-            hit <span className="text-accent-transport">Analyze</span>.
-          </li>
-          <li>Live OSM + Overture data is fetched and analysed — first runs take a few minutes.</li>
-          <li>Explore nine tabs of maps and indices, export GeoJSON/Shapefile/PDF, or share the result with a permanent link.</li>
-          <li>
-            Use <span className="text-ink">Compare</span> to put two cities side by side.
-          </li>
-        </ol>
-        <button className="btn-primary mt-5 w-full" onClick={dismiss}>
-          Start analysing
-        </button>
-      </div>
-    </div>
   );
 }

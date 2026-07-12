@@ -34,8 +34,10 @@ body {
     @apply text-[11px] uppercase tracking-wider text-ink-dim;
   }
   .btn-primary {
-    @apply bg-accent-transport/15 border border-accent-transport/50 text-accent-transport
-      hover:bg-accent-transport/25 rounded px-4 py-2 text-sm font-medium
+    /* Solid accent fill + near-black text (§1.4): ~10:1 contrast, vs. the old
+       cyan-on-cyan outline that sat well under WCAG AA. */
+    @apply bg-accent-transport text-[#071018] font-semibold
+      hover:bg-[#5BE2F8] rounded px-4 py-2 text-sm
       transition-colors disabled:opacity-40 disabled:cursor-not-allowed;
   }
   .btn-ghost {

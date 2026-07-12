@@ -3,6 +3,7 @@ import type {
   AnalyzeConfig,
   AnalysisResult,
   CompareResult,
+  DistrictsResponse,
   JobPoll,
   SharedAnalysis,
 } from "./types";
@@ -81,4 +82,8 @@ export async function getReport(jobId: string): Promise<Blob> {
 
 export function getSharedAnalysis(id: string): Promise<SharedAnalysis> {
   return jsonFetch(`/api/analysis/${id}`);
+}
+
+export function getDistricts(cityName: string): Promise<DistrictsResponse> {
+  return jsonFetch(`/api/districts?city_name=${encodeURIComponent(cityName)}`);
 }
