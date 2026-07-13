@@ -14,6 +14,15 @@ superseded per Addendum 3.)
    `CREATE EXTENSION IF NOT EXISTS postgis;` — if this errors on the free tier,
    use the GeoJSON-blob fallback documented in `api/scripts/preload_geofabrik.py`.
 
+## 0. Pre-deploy check (before EVERY deploy)
+
+```bash
+cd api && python -c "import main"     # must exit 0 — catches NameError/ImportError at module level
+cd ../web && npm run build            # must exit 0 with no type/lint errors
+```
+
+Both must succeed with zero errors before pushing to Cloud Run / Vercel.
+
 ## 2. Backend → Google Cloud Run (~10 min)
 
 Prereqs: a Google Cloud project with billing enabled (the always-free tier —

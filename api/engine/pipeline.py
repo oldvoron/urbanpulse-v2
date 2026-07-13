@@ -32,7 +32,6 @@ the ``"artifacts"`` key (the API layer keeps it out of the DB row).
 
 import gc
 import json
-import os
 import concurrent.futures
 from math import radians, cos
 

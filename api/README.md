@@ -28,6 +28,16 @@ on **Google Cloud Run** (always-free tier: 2M requests/month, scales to zero).
 - `PORT` — injected by Cloud Run (defaults to 8080); the Dockerfile CMD reads
   it at container start. Do not set it manually.
 
+## Pre-deploy check (mandatory)
+
+Before every deploy, run `python -c "import main"` locally in `api/` and
+`npm run build` locally in `web/` — both must succeed with zero errors before
+pushing to Cloud Run / Vercel. This catches the whole class of
+"module-level NameError/ImportError that only surfaces in prod" bugs (a
+missing import crashes the app before CORS middleware is even applied, which
+shows up in the browser as CORS errors + 500s at once). Also run
+`python -m pyflakes main.py engine/*.py db/*.py` for undefined names.
+
 ## Deploying (Google Cloud Run)
 
 ```bash

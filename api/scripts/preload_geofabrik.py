@@ -58,13 +58,11 @@ def main():
     args = parser.parse_args()
 
     try:
-        import osmium  # noqa: F401
+        import osmium
     except ImportError:
         sys.exit("pyosmium is required: pip install pyosmium")
 
-    import osmium
     import psycopg2
-    from shapely import wkb as shapely_wkb
 
     region = args.region or args.pbf.split("/")[-1].split("-")[0]
     conn = psycopg2.connect(args.database_url)
