@@ -22,7 +22,6 @@ Entry point:
     morphology, transport, nature, terrain, climate,
     stress_index, fabric_typology, cross_analysis   — module toggles (bool),
                          same semantics as the v1 sidebar "Analysis Modules"
-    ai                   bool — generate AI insights when ANTHROPIC_API_KEY is set
 
 Returns a plain dict of everything the frontend needs — ``metrics_summary``,
 per-tab scalar readouts, every chart figure (as Plotly JSON specs) for the
@@ -109,7 +108,6 @@ DEFAULT_MODULES = {
     "stress_index": True,
     "fabric_typology": True,
     "cross_analysis": True,
-    "ai": True,
 }
 
 MAX_ENTIRE_CITY_AREA_KM2 = 800
@@ -260,11 +258,6 @@ def _run_parallel_fetches(city_name, analysis_bbox, config,
                 print(f"[parallel] {key} failed: {type(e).__name__}: {e}")
                 results[key] = None
     return results, timed_out_keys
-
-
-def _ai_available() -> bool:
-    key = os.getenv("ANTHROPIC_API_KEY", "")
-    return bool(key) and key != "your_key_here"
 
 
 def _fig_to_spec(fig):
@@ -928,32 +921,6 @@ def run_full_analysis(city_name: str, config: dict = None,
     _chart("district_scorecard", ch.chart_district_scorecard, district_scores_df,
            min_check=not district_scores_df.empty)
 
-    # ── AI insights ───────────────────────────────────────────────────────────
-    ai_insights = ""
-    if toggles["ai"] and _ai_available():
-        _progress("Generating AI insights…")
-        try:
-            from .ai import get_urban_insights
-            _morph_stats = {
-                "dominant_morphotype": dominant_morphotype,
-                "green_space_ratio":   lu_metrics.get("green_space_ratio", 0.0),
-                "far_mean": float(hex_metrics["FAR"].mean()) if not hex_metrics.empty and "FAR" in hex_metrics.columns else 0.0,
-                "dead_end_ratio":      dead_end_ratio,
-                "orientation_entropy": orientation_entropy,
-                "transit_stops":       transit_stops_count,
-                "cycling_km":          round(float(cycling_km), 1),
-                "high_flood_pct":      round(float(high_flood_pct), 1),
-            }
-            ai_insights = get_urban_insights(
-                city_name,
-                poi_stats=category_series.head(5).to_dict() if not category_series.empty else {},
-                height_stats=height_stats,
-                network_stats={k: v for k, v in net_stats.items() if k != "orientation_histogram"},
-                morph_stats=_morph_stats,
-            )
-        except Exception as e:
-            _warn(f"AI insights failed: {e}")
-
     # ── Assemble result ───────────────────────────────────────────────────────
     _progress("Serializing results…")
 
@@ -1023,7 +990,6 @@ def run_full_analysis(city_name: str, config: dict = None,
         "scalars": scalars,
         "charts": charts_json,
         "district_scores": district_scores,
-        "ai_insights": ai_insights,
         "warnings": warnings,
         # Non-JSON geodata for the export endpoints; the API layer strips this
         # before persisting the result to the jobs table.

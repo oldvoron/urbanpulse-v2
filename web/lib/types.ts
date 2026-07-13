@@ -38,7 +38,6 @@ export interface AnalysisResult {
   scalars: Scalars;
   charts: Record<string, PlotlySpec>;
   district_scores: Record<string, unknown>[];
-  ai_insights: string;
   warnings: string[];
 }
 
@@ -79,7 +78,6 @@ export interface AnalyzeConfig {
   stress_index?: boolean;
   fabric_typology?: boolean;
   cross_analysis?: boolean;
-  ai?: boolean;
 }
 
 export const CITY_SIZES = [

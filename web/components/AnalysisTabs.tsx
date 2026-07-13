@@ -287,16 +287,6 @@ export default function AnalysisTabs({ result }: { result: AnalysisResult }) {
           <Empty text="No district boundaries found for this city, or insufficient hex coverage per district." />
         ))}
 
-      {/* AI insights */}
-      {result.ai_insights && (
-        <div className="panel p-4 mt-2">
-          <div className="stat-label mb-2">AI Analysis</div>
-          <div className="text-sm text-ink-dim whitespace-pre-line leading-relaxed">
-            {result.ai_insights}
-          </div>
-        </div>
-      )}
-
       {result.warnings.length > 0 && (
         <div className="panel border-accent-risk/40 p-3 text-xs text-accent-risk font-mono space-y-1">
           {result.warnings.map((w, i) => (

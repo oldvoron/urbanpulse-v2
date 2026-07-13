@@ -273,7 +273,6 @@ export default function ControlPanel({
 
       <div className="border-t border-edge pt-3 text-[10px] text-ink-faint font-mono space-y-0.5">
         <div>Data: Overture Maps + OpenStreetMap</div>
-        <div>AI: Claude</div>
       </div>
     </aside>
   );

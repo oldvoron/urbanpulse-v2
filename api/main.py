@@ -378,7 +378,6 @@ def report(job_id: str):
         city_name=job.result.get("city_name", job.city_name),
         metrics_summary=job.result.get("metrics_summary", {}),
         figures=figures,
-        ai_insights=job.result.get("ai_insights", ""),
         scalars=job.result.get("scalars", {}),
     )
     slug = job.city_name.replace(", ", "_").replace(" ", "_").lower()

@@ -187,7 +187,6 @@ def generate_pdf_report(
     city_name: str,
     metrics_summary: dict,
     figures: dict,
-    ai_insights: str = "",
     scalars: dict = None,
 ) -> bytes:
     """Generate the dark, branded PDF report. `figures` maps chart keys (same
@@ -260,9 +259,6 @@ def generate_pdf_report(
     style_caption = ParagraphStyle(
         "Caption", fontSize=7.5, leading=10, spaceAfter=8,
         textColor=HexColor(_INK_FAINT), fontName="Helvetica")
-    style_insight = ParagraphStyle(
-        "Insight", fontSize=9.5, leading=14, spaceAfter=6, leftIndent=10,
-        textColor=HexColor(_INK_DIM), fontName="Helvetica")
 
     def _accent_rule(section_accent):
         return HRFlowable(width="100%", thickness=1.5,
@@ -314,15 +310,6 @@ def generate_pdf_report(
     if kf:
         story.append(kf)
         story.append(Spacer(1, 0.5 * cm))
-
-    # ── AI Insights ───────────────────────────────────────────────────────────
-    if ai_insights and "unavailable" not in ai_insights.lower()[:30]:
-        story.append(Paragraph("AI Analysis", style_h2))
-        story.append(_accent_rule("poi"))
-        story.append(Spacer(1, 0.2 * cm))
-        for line in ai_insights.split("\n"):
-            if line.strip():
-                story.append(Paragraph(line.strip(), style_insight))
 
     # ── Chart sections — max 2 charts per page (§3.2) ─────────────────────────
     for section_title, accent, charts in _SECTIONS:

@@ -11,9 +11,9 @@ repo is the fully separate v2 build.
 ## Layout
 
 - **`api/`** — FastAPI backend. Wraps the framework-independent analytics engine
-  (`api/engine/`) behind a job-based REST API. Deployed as a Docker Space on
-  Hugging Face (separate from the v1 Space). State lives in Neon Postgres
-  (`jobs`, `city_cache`, `users` tables).
+  (`api/engine/`) behind a job-based REST API. Deployed as a Docker container
+  on Google Cloud Run (see `DEPLOYMENT.md`; HF Docker Spaces are no longer
+  free). State lives in Neon Postgres (`jobs`, `city_cache`, `users` tables).
 - **`web/`** — Next.js (App Router, TypeScript, Tailwind) frontend deployed to
   Vercel. Talks to the API via `web/lib/api.ts` (`NEXT_PUBLIC_API_URL`).
 
