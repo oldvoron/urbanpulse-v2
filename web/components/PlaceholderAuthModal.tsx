@@ -1,9 +1,67 @@
 "use client";
 
-// Brief §0: registration/auth/payments are PURE UI placeholders. This modal
-// is decorative — no form, no session, no backing logic of any kind.
+// Brief §0: registration/auth/payments are PURE UI placeholders — no auth
+// logic, no session. The one real thing here is the paid-plans email
+// waitlist (Addendum 2 §10), which only writes an email to users.email.
 
 import { createContext, useContext, useState } from "react";
+import { API_URL } from "@/lib/api";
+
+function WaitlistForm() {
+  const [email, setEmail] = useState("");
+  const [state, setState] = useState<"idle" | "busy" | "done" | "error">("idle");
+
+  const submit = async () => {
+    if (!email.trim()) return;
+    setState("busy");
+    try {
+      const res = await fetch(`${API_URL}/api/waitlist`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      setState(res.ok ? "done" : "error");
+    } catch {
+      setState("error");
+    }
+  };
+
+  if (state === "done")
+    return (
+      <p className="text-xs text-accent-nature font-mono text-center border-t border-edge pt-4">
+        ✓ You&apos;re on the list — we&apos;ll email you when plans launch.
+      </p>
+    );
+  return (
+    <div className="border-t border-edge pt-4 space-y-2">
+      <p className="text-xs text-ink-faint">
+        Want to know when paid plans launch?
+      </p>
+      <div className="flex gap-2">
+        <input
+          className="input-dark !py-1.5 text-xs"
+          type="email"
+          placeholder="you@example.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && submit()}
+        />
+        <button
+          className="btn-ghost !text-xs shrink-0"
+          onClick={submit}
+          disabled={state === "busy" || !email.trim()}
+        >
+          {state === "busy" ? "…" : "Notify me"}
+        </button>
+      </div>
+      {state === "error" && (
+        <p className="text-[10px] text-accent-risk font-mono">
+          Something went wrong — check the address and try again.
+        </p>
+      )}
+    </div>
+  );
+}
 
 type ModalKind = "account" | "upgrade" | null;
 
@@ -43,6 +101,9 @@ export function PlaceholderModalProvider({ children }: { children: React.ReactNo
             <button className="btn-primary mt-5 w-full" onClick={() => setKind(null)}>
               Got it
             </button>
+            <div className="mt-4">
+              <WaitlistForm />
+            </div>
           </div>
         </div>
       )}

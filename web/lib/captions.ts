@@ -76,4 +76,6 @@ export const CHART_CAPTIONS: Record<string, string> = {
     "Urban Segregation Proxy per H3 cell: composite of mono-functionality (40%), transit isolation (35%), and density isolation (25%, high FAR in mono-functional zone). Source: Overture Maps POI diversity, OSM transit stops, OSM buildings. This is a spatial proxy for functional segregation — not a socioeconomic segregation measure.",
   district_scorecard:
     "Letter-grade scorecard for each administrative district across five dimensions: transport accessibility, nature access, morphological quality, urban stress, and flood risk. Grades: A (top 25%), B (25–45%), C (45–65%), D (bottom 35%). Source: H3 hex cell metrics spatially joined to OSM administrative boundaries (admin_level 9–10). Districts sorted by overall performance.",
+  fifteen_min_map:
+    "15-Minute City Score per H3 hex cell: percentage of five essential-service categories (grocery/food, pharmacy/health, school/education, park/green space, transit stop) reachable within a 15-minute walk (4.5 km/h) along the real street network. Source: OSM walking network via OSMnx (multi-source shortest paths), Overture Maps POI, OSM transit stops and green-space polygons. Hover shows per-category walking minutes, revealing which service type is the bottleneck for each area \u2014 darker teal = better all-round walkable access.",
 };

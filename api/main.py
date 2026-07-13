@@ -137,6 +137,26 @@ def _run_analyze_job(job_id: str, city_name: str, config: dict):
         )
         artifacts = result.pop("artifacts", {})
         _store_artifacts(job_id, artifacts)
+
+        # Share card (§8): generated once per completed job, stored with the
+        # result; served at /api/card/{id} and used as the OG preview image.
+        _progress[job_id] = "Rendering share card…"
+        try:
+            import plotly.graph_objects as go
+            from engine.sharecard import generate_share_card, _PREFERRED_CHARTS
+            figs = {}
+            for k in _PREFERRED_CHARTS:
+                spec = (result.get("charts") or {}).get(k)
+                if spec:
+                    figs[k] = go.Figure(spec)
+                    break
+            card = generate_share_card(result.get("city_name", city_name),
+                                       result.get("metrics_summary", {}), figs)
+            if card:
+                result["share_card_b64"] = card
+        except Exception as e:
+            print(f"[job] share card failed: {e}")
+
         _set_job(job_id, status="done", result=result, completed_at=_utcnow())
     except AnalysisError as e:
         _set_job(job_id, status="error", error=str(e), completed_at=_utcnow())
@@ -331,16 +351,6 @@ def export(job_id: str, format: str = "geojson"):
                  f'attachment; filename="urbanpulse_{slug}_shapefile.zip"'})
 
 
-# Figures the v1 PDF report expects, rebuilt from the stored Plotly specs.
-_PDF_FIGURE_KEYS = [
-    "poi_distribution", "building_heights", "morphotype_clusters",
-    "far_heatmap", "transport_map", "nature_map", "stress_map",
-    "fabric_matrix", "morphotype_radar", "opportunity_surface",
-    "cross_morph_transport", "cross_nature_density",
-    "terrain_elevation", "terrain_flood_risk",
-]
-
-
 @app.post("/api/report/{job_id}")
 def report(job_id: str):
     with SessionLocal() as db:
@@ -355,21 +365,21 @@ def report(job_id: str):
     import plotly.graph_objects as go
     from engine.report import generate_pdf_report
 
-    charts = job.result.get("charts", {})
+    # Every chart in the result is exportable (§3.1) — rebuild them all from
+    # the stored Plotly specs; report.py's section list decides placement.
     figures = {}
-    for key in _PDF_FIGURE_KEYS:
-        spec = charts.get(key)
-        if spec:
-            try:
-                figures[key] = go.Figure(spec)
-            except Exception as e:
-                print(f"[report] rebuild {key} failed: {e}")
+    for key, spec in (job.result.get("charts") or {}).items():
+        try:
+            figures[key] = go.Figure(spec)
+        except Exception as e:
+            print(f"[report] rebuild {key} failed: {e}")
 
     pdf_bytes = generate_pdf_report(
         city_name=job.result.get("city_name", job.city_name),
         metrics_summary=job.result.get("metrics_summary", {}),
         figures=figures,
         ai_insights=job.result.get("ai_insights", ""),
+        scalars=job.result.get("scalars", {}),
     )
     slug = job.city_name.replace(", ", "_").replace(" ", "_").lower()
     return Response(
@@ -400,6 +410,41 @@ def districts(city_name: str):
         raise HTTPException(502, f"District lookup failed: {type(e).__name__}: {e}")
     _city_cache.set(cache_key, None, result)
     return result
+
+
+@app.get("/api/card/{job_id}")
+def share_card(job_id: str):
+    """Share-card PNG (§8) — also the Open Graph image for /analysis/[id]."""
+    import base64
+    with SessionLocal() as db:
+        job = db.get(Job, job_id)
+    if job is None or job.status != "done" or not job.result:
+        raise HTTPException(404, "Analysis not found")
+    b64 = job.result.get("share_card_b64")
+    if not b64:
+        raise HTTPException(404, "No share card for this analysis")
+    return Response(base64.b64decode(b64), media_type="image/png",
+                    headers={"Cache-Control": "public, max-age=86400"})
+
+
+class WaitlistRequest(BaseModel):
+    email: str = Field(min_length=3, max_length=320)
+
+
+@app.post("/api/waitlist")
+def waitlist(req: WaitlistRequest):
+    """Email capture for the paid-plans waitlist (§10) — populates the
+    existing users.email column; no auth logic of any kind."""
+    from db.models import User
+    email = req.email.strip().lower()
+    if "@" not in email or "." not in email.split("@")[-1]:
+        raise HTTPException(400, "Enter a valid email address")
+    with SessionLocal() as db:
+        exists = db.query(User).filter(User.email == email).first()
+        if exists is None:
+            db.add(User(email=email, payment_status="waitlist"))
+            db.commit()
+    return {"ok": True}
 
 
 @app.get("/api/analysis/{analysis_id}")

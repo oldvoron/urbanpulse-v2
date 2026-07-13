@@ -138,9 +138,13 @@ export default function AnalysisTabs({ result }: { result: AnalysisResult }) {
         ))}
 
       {tab === "Transport" &&
-        (has("road_hierarchy", "transit_heatmap", "transport_map") ? (
+        (has("road_hierarchy", "transit_heatmap", "transport_map", "fifteen_min_map") ? (
           <div className="space-y-3">
-            <div className="grid grid-cols-3 gap-3">
+            <div
+              className={`grid gap-3 ${
+                s.score_15min_mean != null ? "grid-cols-2 md:grid-cols-4" : "grid-cols-3"
+              }`}
+            >
               <StatTile
                 label="Transit Stops"
                 value={s.transit_stops_count.toLocaleString()}
@@ -156,9 +160,16 @@ export default function AnalysisTabs({ result }: { result: AnalysisResult }) {
                 value={s.dominant_road}
                 accent="transport"
               />
+              {s.score_15min_mean != null && (
+                <StatTile
+                  label="15-Min City Score"
+                  value={`${s.score_15min_mean.toFixed(0)} / 100`}
+                  accent="transport"
+                />
+              )}
             </div>
             <Charts result={result} keys={["road_hierarchy", "transit_heatmap"]} />
-            <Charts result={result} keys={["transport_map"]} cols={1} />
+            <Charts result={result} keys={["transport_map", "fifteen_min_map"]} cols={1} />
           </div>
         ) : (
           <Empty text="Module disabled — enable in the control panel." />

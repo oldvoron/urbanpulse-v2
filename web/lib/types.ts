@@ -22,6 +22,7 @@ export interface Scalars {
   city_center_lat: number;
   city_center_lon: number;
   typology_counts: Record<string, number>;
+  score_15min_mean?: number | null;
 }
 
 // A Plotly figure spec as produced by fig.to_json() server-side.

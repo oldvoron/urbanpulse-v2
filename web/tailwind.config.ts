@@ -28,6 +28,9 @@ const config: Config = {
         "accent-poi": "#E86BF0",
         "accent-risk": "#F5A623",
         "accent-nature": "#3ECF8E",
+        // Reserved (Addendum 2 §1): means "selected zone" only — never a data
+        // category. Must match engine charts.SELECTION_COLOR.
+        "accent-selection": "#FFD54A",
       },
       fontFamily: {
         sans: ["var(--font-inter)", "system-ui", "sans-serif"],

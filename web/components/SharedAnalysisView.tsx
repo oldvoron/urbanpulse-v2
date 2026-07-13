@@ -16,9 +16,11 @@ function isCompare(r: AnalysisResult | CompareResult): r is CompareResult {
 export default function SharedAnalysisView({
   id,
   embed = false,
+  hideHeader = false,
 }: {
   id: string;
   embed?: boolean;
+  hideHeader?: boolean;
 }) {
   const [data, setData] = useState<SharedAnalysis | null>(null);
   const [error, setError] = useState("");
@@ -47,7 +49,7 @@ export default function SharedAnalysisView({
   const r = data.result;
   return (
     <div className={embed ? "p-2" : "space-y-3"}>
-      {!embed && (
+      {!embed && !hideHeader && (
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h1 className="text-lg text-ink font-medium">{data.city_name}</h1>
           <span className="font-mono text-[11px] text-ink-faint">

@@ -68,7 +68,7 @@ from .metrics import (
     _resolve_heights,
 )
 from . import charts as ch
-from .charts import add_admin_boundaries_to_fig
+from .charts import add_admin_boundaries_to_fig, add_selection_overlay_to_fig
 
 
 # ── Size configs (v1 sidebar "City size") ─────────────────────────────────────
@@ -640,6 +640,20 @@ def run_full_analysis(city_name: str, config: dict = None,
         except Exception:
             pass
 
+    # ── 15-Minute City Score (Addendum 2 §5) ──────────────────────────────────
+    # Network-based walking access, reusing the already-fetched street graph +
+    # categorized POIs + transit stops + green spaces. Transport-tab metric.
+    if run_transport and graph is not None and not analysis_hex.empty:
+        _progress("Computing 15-minute city score…")
+        try:
+            from .fifteen import compute_15min_scores
+            analysis_hex = compute_15min_scores(
+                analysis_hex, graph, poi_df,
+                transit_stops_gdf, green_spaces_gdf)
+        except Exception as e:
+            _warn(f"15-minute city score failed: {e}")
+        gc.collect()
+
     # ── Step 8: Terrain sampling ──────────────────────────────────────────────
     if run_terrain:
         _progress("Sampling terrain elevation per hex cell…")
@@ -743,21 +757,54 @@ def run_full_analysis(city_name: str, config: dict = None,
     except Exception as e:
         _warn(f"District scores failed: {e}")
 
+    # ── Selection geometry (Addendum 2 §1) ────────────────────────────────────
+    # The analysis zone gets a reserved-color outline + dimmed surroundings on
+    # every map, identically for all three zone modes.
+    selection_geom = None
+    try:
+        if zone_mode == "Draw custom bbox" and custom_bbox and all(v != 0.0 for v in custom_bbox):
+            from shapely.geometry import box as _shp_box
+            selection_geom = _shp_box(custom_bbox[0], custom_bbox[1],
+                                      custom_bbox[2], custom_bbox[3])
+        elif zone_mode == "Select district" and selected_district != "All":
+            for _level in ("admin_9", "admin_10"):
+                _gdf = (admin_boundaries or {}).get(_level)
+                if _gdf is not None and not _gdf.empty:
+                    _m = _gdf[_gdf["admin_name"] == selected_district]
+                    if not _m.empty:
+                        try:
+                            selection_geom = _m.union_all()
+                        except AttributeError:
+                            selection_geom = _m.unary_union
+                        break
+        elif city_polygon is not None:
+            selection_geom = city_polygon
+    except Exception as e:
+        _warn(f"Selection overlay geometry failed: {e}")
+
+    # In entire-city mode the selection outline replaces the plain white city
+    # boundary (same visual language across modes, no double outline).
+    _show_city_line = not (selection_geom is not None and zone_mode == "Entire city")
+
     # ── Charts (all nine v1 tabs) ─────────────────────────────────────────────
     _progress("Rendering charts…")
     figures: dict = {}
 
     def _chart(name, fn, *args, apply_admin_bounds=False, min_check=True, **kw):
         """v1 _safe_chart equivalent: build figure, optionally overlay admin
-        boundaries, store under `name`. Failures become a skipped chart."""
+        boundaries + the selection highlight, store under `name`. Failures
+        become a skipped chart."""
         if not min_check:
             return
         try:
             fig = fn(*args, **kw)
             if apply_admin_bounds and admin_boundaries:
                 fig = add_admin_boundaries_to_fig(
-                    fig, admin_boundaries, show_city=True, show_districts=True,
+                    fig, admin_boundaries, show_city=_show_city_line,
+                    show_districts=True,
                 )
+            if apply_admin_bounds and selection_geom is not None:
+                fig = add_selection_overlay_to_fig(fig, selection_geom)
             figures[name] = fig
         except Exception as e:
             print(f"[pipeline][chart] {name} unavailable: {e}")
@@ -813,6 +860,9 @@ def run_full_analysis(city_name: str, config: dict = None,
         _chart("transport_map", ch.chart_transport_accessibility, transport_hex,
                apply_admin_bounds=True,
                min_check=has_data(transport_hex, min_rows=1, required_cols=['transport_index']))
+        _chart("fifteen_min_map", ch.chart_15min_map, analysis_hex,
+               apply_admin_bounds=True,
+               min_check=_has_cols(analysis_hex, "score_15min", min_rows=3))
 
     # Tab 5 — Nature & Risk
     if run_nature:
@@ -935,6 +985,11 @@ def run_full_analysis(city_name: str, config: dict = None,
         "city_center_lat":     city_center_lat,
         "city_center_lon":     city_center_lon,
         "typology_counts":     {str(k): int(v) for k, v in typology_counts.items()} if typology_counts is not None else {},
+        "score_15min_mean": (
+            float(analysis_hex["score_15min"].dropna().mean())
+            if "score_15min" in analysis_hex.columns
+            and analysis_hex["score_15min"].notna().any() else None
+        ),
     }
 
     charts_json = {name: _fig_to_spec(fig) for name, fig in figures.items()}

@@ -1555,6 +1555,94 @@ def add_admin_boundaries_to_fig(fig, admin_boundaries: dict,
 
 # ── Climate & Heat Island ─────────────────────────────────────────────────────
 
+def chart_15min_map(hex_gdf) -> go.Figure:
+    """15-Minute City Score choropleth (Addendum 2 §5) — same hex-map visual
+    pattern as the POI density heatmap; teal scale (transport category)."""
+    if hex_gdf is None or hex_gdf.empty or "score_15min" not in hex_gdf.columns:
+        return _empty("No 15-minute city data available")
+    df = hex_gdf[hex_gdf["score_15min"].notna()].copy()
+    if df.empty:
+        return _empty("No 15-minute city data available")
+    hover = [c for c in ["score_15min", "min15_food", "min15_health",
+                         "min15_education", "min15_green", "min15_transit"]
+             if c in df.columns]
+    for c in hover:
+        df[c] = df[c].round(1)
+    return _choropleth_hex(
+        df, "score_15min",
+        "15-Minute City Score — Walkable Access to Essential Services",
+        colorscale="Teal", hover_cols=hover,
+    )
+
+
+# Reserved selection color (Addendum 2 §1): never used for any data-category
+# encoding anywhere in the app — it always and only means "selected zone".
+SELECTION_COLOR = "#FFD54A"
+_DIM_COLOR = "rgba(7, 10, 16, 0.55)"
+
+
+def add_selection_overlay_to_fig(fig, selection_geom):
+    """Highlight the analysis zone on a mapbox figure (Addendum 2 §1).
+
+    Adds (in trace order, so they render on top of data): a dimming mask over
+    everything OUTSIDE the selection (world polygon with the selection as
+    holes), then a dark casing + bright SELECTION_COLOR outline along the
+    selection boundary. Also recenters/zooms the map to fit the selection.
+    Applied identically for all three zone modes.
+    """
+    if selection_geom is None or fig is None:
+        return fig
+    gt = getattr(selection_geom, "geom_type", None)
+    if gt == "Polygon":
+        polys = [selection_geom]
+    elif gt == "MultiPolygon":
+        polys = list(selection_geom.geoms)
+    else:
+        return fig
+
+    # Dim everything outside the selection
+    world = [[-179.9, -85.0], [179.9, -85.0], [179.9, 85.0], [-179.9, 85.0], [-179.9, -85.0]]
+    holes = [[[float(x), float(y)] for x, y in p.exterior.coords] for p in polys]
+    mask_geojson = {
+        "type": "FeatureCollection",
+        "features": [{
+            "type": "Feature", "id": "mask",
+            "geometry": {"type": "Polygon", "coordinates": [world] + holes},
+            "properties": {},
+        }],
+    }
+    fig.add_trace(go.Choroplethmapbox(
+        geojson=mask_geojson, locations=["mask"], z=[1],
+        colorscale=[[0, _DIM_COLOR], [1, _DIM_COLOR]],
+        showscale=False, hoverinfo="skip",
+        marker=dict(line=dict(width=0)),
+    ))
+
+    # Selection outline: dark casing under a bright reserved-color line
+    for p in polys:
+        coords = list(p.exterior.coords)
+        lons = [float(c[0]) for c in coords]
+        lats = [float(c[1]) for c in coords]
+        fig.add_trace(go.Scattermapbox(
+            lat=lats, lon=lons, mode="lines",
+            line=dict(width=7, color="rgba(0,0,0,0.6)"),
+            showlegend=False, hoverinfo="skip",
+        ))
+        fig.add_trace(go.Scattermapbox(
+            lat=lats, lon=lons, mode="lines",
+            line=dict(width=3, color=SELECTION_COLOR),
+            showlegend=False, hoverinfo="skip",
+        ))
+
+    # Fit the map to the selection bounds
+    minx, miny, maxx, maxy = selection_geom.bounds
+    fig.update_layout(mapbox=dict(
+        center={"lat": (miny + maxy) / 2, "lon": (minx + maxx) / 2},
+        zoom=_compute_zoom(miny, maxy, minx, maxx),
+    ))
+    return fig
+
+
 def chart_heat_island_map(hex_gdf, base_temp: float) -> go.Figure:
     if hex_gdf is None or hex_gdf.empty or 'uhi_delta' not in hex_gdf.columns:
         return _empty("No heat island data available")
