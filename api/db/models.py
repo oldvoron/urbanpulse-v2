@@ -35,6 +35,8 @@ class Job(Base):
     city_name = Column(Text, nullable=False)
     config = Column(JSONVariant, nullable=False, default=dict)
     status = Column(String(16), nullable=False, default="pending")  # pending|running|done|error
+    progress = Column(Text, nullable=True)  # human-readable stage; DB-backed so
+    # any Cloud Run replica serves it (no in-process state)
     result = Column(JSONVariant, nullable=True)
     error = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), default=_now)

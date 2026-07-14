@@ -47,12 +47,14 @@ app.add_middleware(
 )
 
 # ── Background execution ──────────────────────────────────────────────────────
-# 2 workers: analyses are memory-heavy; HF free tier is CPU-only with limited
+# 2 workers: analyses are memory-heavy; the free tier is CPU-only with limited
 # RAM, so more concurrency would OOM before it would help.
 _executor = concurrent.futures.ThreadPoolExecutor(max_workers=2)
 
-# job_id → latest human-readable progress string (in-memory; best-effort)
-_progress: dict[str, str] = {}
+# Jobs stuck in pending/running longer than this are declared dead by the
+# lazy watchdog in job_status() — protects against silent hangs and replicas
+# killed mid-run (Cloud Run scale-down), where no in-process cleanup ever runs.
+_JOB_TIMEOUT_MIN = int(os.getenv("JOB_TIMEOUT_MINUTES", "8"))
 
 # job_id → {"buildings": gdf, "hex_grid": gdf, "street_edges": gdf}
 # GeoDataFrames for the export endpoints. Kept in-process only (they are not
@@ -126,13 +128,24 @@ def _set_job(job_id: str, **fields):
         db.commit()
 
 
-def _run_analyze_job(job_id: str, city_name: str, config: dict):
-    _set_job(job_id, status="running")
-    _progress[job_id] = "Starting analysis…"
+def _set_progress(job_id: str, message: str):
+    """DB-backed progress so any replica can serve it; never raises — a
+    progress write must not be able to kill the job it describes."""
     try:
+        _set_job(job_id, progress=message)
+    except Exception:
+        pass
+
+
+def _run_analyze_job(job_id: str, city_name: str, config: dict):
+    # EVERYTHING inside try/except: any exception — including a failure of
+    # the very first status write — must end in status='error', never a job
+    # silently frozen in pending/running.
+    try:
+        _set_job(job_id, status="running", progress="Starting analysis…")
         result = run_full_analysis(
             city_name, config,
-            progress=lambda m: _progress.__setitem__(job_id, m),
+            progress=lambda m: _set_progress(job_id, m),
             cache=_city_cache,
         )
         artifacts = result.pop("artifacts", {})
@@ -140,7 +153,7 @@ def _run_analyze_job(job_id: str, city_name: str, config: dict):
 
         # Share card (§8): generated once per completed job, stored with the
         # result; served at /api/card/{id} and used as the OG preview image.
-        _progress[job_id] = "Rendering share card…"
+        _set_progress(job_id, "Rendering share card…")
         try:
             import plotly.graph_objects as go
             from engine.sharecard import generate_share_card, _PREFERRED_CHARTS
@@ -157,14 +170,14 @@ def _run_analyze_job(job_id: str, city_name: str, config: dict):
         except Exception as e:
             print(f"[job] share card failed: {e}")
 
-        _set_job(job_id, status="done", result=result, completed_at=_utcnow())
+        _set_job(job_id, status="done", result=result, progress=None,
+                 completed_at=_utcnow())
     except AnalysisError as e:
-        _set_job(job_id, status="error", error=str(e), completed_at=_utcnow())
+        _set_job(job_id, status="error", error=str(e), progress=None,
+                 completed_at=_utcnow())
     except Exception as e:
-        _set_job(job_id, status="error",
+        _set_job(job_id, status="error", progress=None,
                  error=f"{type(e).__name__}: {e}", completed_at=_utcnow())
-    finally:
-        _progress.pop(job_id, None)
 
 
 _COMPARE_METRICS = [
@@ -174,14 +187,14 @@ _COMPARE_METRICS = [
 
 
 def _run_compare_job(job_id: str, city_a: str, city_b: str, config: dict):
-    _set_job(job_id, status="running")
     try:
+        _set_job(job_id, status="running")
         results = {}
         for label, city in (("city_a", city_a), ("city_b", city_b)):
-            _progress[job_id] = f"Analyzing {city}…"
+            _set_progress(job_id, f"Analyzing {city}…")
             r = run_full_analysis(
                 city, config,
-                progress=lambda m, c=city: _progress.__setitem__(job_id, f"{c}: {m}"),
+                progress=lambda m, c=city: _set_progress(job_id, f"{c}: {m}"),
                 cache=_city_cache,
             )
             r.pop("artifacts", None)  # compare jobs don't serve geodata exports
@@ -195,19 +208,19 @@ def _run_compare_job(job_id: str, city_a: str, city_b: str, config: dict):
             if isinstance(va, (int, float)) and isinstance(vb, (int, float)):
                 diff[k] = {"city_a": va, "city_b": vb, "delta": vb - va}
 
-        _set_job(job_id, status="done", completed_at=_utcnow(), result={
-            "kind": "compare",
-            "city_a": results["city_a"],
-            "city_b": results["city_b"],
-            "diff_summary": diff,
-        })
+        _set_job(job_id, status="done", completed_at=_utcnow(), progress=None,
+                 result={
+                     "kind": "compare",
+                     "city_a": results["city_a"],
+                     "city_b": results["city_b"],
+                     "diff_summary": diff,
+                 })
     except AnalysisError as e:
-        _set_job(job_id, status="error", error=str(e), completed_at=_utcnow())
+        _set_job(job_id, status="error", error=str(e), progress=None,
+                 completed_at=_utcnow())
     except Exception as e:
-        _set_job(job_id, status="error",
+        _set_job(job_id, status="error", progress=None,
                  error=f"{type(e).__name__}: {e}", completed_at=_utcnow())
-    finally:
-        _progress.pop(job_id, None)
 
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
@@ -254,13 +267,30 @@ def analyze(req: AnalyzeRequest):
 
 @app.get("/api/analyze/{job_id}")
 def job_status(job_id: str):
+    """Job status — read EXCLUSIVELY from the jobs table (no in-process
+    state), so polling works identically across Cloud Run replicas."""
     with SessionLocal() as db:
         job = db.get(Job, job_id)
     if job is None:
         raise HTTPException(404, "Job not found")
+
+    # Lazy watchdog: a job stuck in pending/running past the timeout is dead
+    # (silent hang, or its replica was scaled away mid-run) — fail it
+    # explicitly instead of letting clients poll forever.
+    if job.status in ("pending", "running") and job.created_at is not None:
+        created = job.created_at
+        if created.tzinfo is None:  # SQLite loses tzinfo
+            created = created.replace(tzinfo=timezone.utc)
+        age_min = (_utcnow() - created).total_seconds() / 60
+        if age_min > _JOB_TIMEOUT_MIN:
+            _set_job(job_id, status="error", progress=None,
+                     error="Analysis timed out", completed_at=_utcnow())
+            with SessionLocal() as db:
+                job = db.get(Job, job_id)
+
     return {
         "status": job.status,
-        "progress": _progress.get(job_id),
+        "progress": job.progress,
         "result": job.result if job.status == "done" else None,
         "error": job.error,
     }

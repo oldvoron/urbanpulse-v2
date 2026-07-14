@@ -32,3 +32,12 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False
 def init_db():
     from .models import Base
     Base.metadata.create_all(engine)
+    # Lightweight migration: create_all doesn't alter existing tables, and
+    # jobs.progress was added after the first deploys. No-op once applied.
+    from sqlalchemy import text
+    try:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE jobs ADD COLUMN progress TEXT"))
+        print("[db] migrated: jobs.progress column added")
+    except Exception:
+        pass  # column already exists
